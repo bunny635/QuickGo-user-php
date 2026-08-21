@@ -11,7 +11,7 @@ $stmt = $pdo->prepare("
     SELECT s.*, pu.name AS provider_name, pu.profile_image 
     FROM services s 
     JOIN providers p ON s.provider_id = p.id 
-    JOIN users pu ON p.user_id = pu.id
+    JOIN users pu ON p.user_id = pu.id 
     WHERE s.id = ?
 ");
 $stmt->execute([$service_id]);
@@ -27,7 +27,7 @@ $providerImage = !empty($service['profile_image']) ? $service['profile_image'] :
 ?>
 
 <style>
-    /* Booking Flow CSS matching React */
+    /* Booking Flow CSS */
     .booking-flow-container {
         background-color: #0F1115;
         min-height: 100vh;
@@ -144,6 +144,7 @@ $providerImage = !empty($service['profile_image']) ? $service['profile_image'] :
         border-radius: 8px;
         padding: 8px 12px;
         transition: 0.3s;
+        cursor: pointer;
     }
 
     .calendar-days-header {
@@ -270,10 +271,10 @@ $providerImage = !empty($service['profile_image']) ? $service['profile_image'] :
     <div class="container pt-4">
 
         <a href="service-details.php?id=<?= $service['id'] ?>" class="btn-back-link mb-4 d-inline-block">
-            <i class="fa-solid fa-arrow-left me-2"></i> Back to Provider Selection
+            <i class="fa-solid fa-arrow-left me-2"></i> Back to Service Details
         </a>
 
-        <h2 class="section-title text-center mb-5">Select Schedule & <span>Book</span></h2>
+        <h2 class="section-title text-center mb-5 text-white" style="font-family: 'Playfair Display', serif;">Select Schedule & <span>Book</span></h2>
 
         <div class="row g-4">
             <!-- LEFT FORM -->
@@ -281,7 +282,7 @@ $providerImage = !empty($service['profile_image']) ? $service['profile_image'] :
                 <div class="booking-form-card">
                     <!-- Provider Info -->
                     <div class="d-flex align-items-center gap-3 mb-4 pb-4 border-bottom border-secondary">
-                        <img src="<?= htmlspecialchars($providerImage) ?>" alt="Provider" class="booking-prov-img">
+                        <img src="<?= htmlspecialchars($providerImage) ?>" alt="Provider" class="booking-prov-img" onerror="this.src='../assets/images/default-avatar.png'">
                         <div>
                             <h5 class="text-white mb-0"><?= htmlspecialchars($service['provider_name']) ?></h5>
                             <p class="text-muted small mb-0"><?= htmlspecialchars($service['title']) ?></p>
@@ -321,14 +322,14 @@ $providerImage = !empty($service['profile_image']) ? $service['profile_image'] :
                     </div>
 
                     <!-- Booking Form Data -->
-                    <form id="bookingForm" action="../actions/booking_action.php" method="POST">
+                    <form id="bookingForm">
                         <input type="hidden" name="service_id" value="<?= $service['id'] ?>">
                         <input type="hidden" name="booking_date" id="inputDate" required>
                         <input type="hidden" name="booking_time" id="inputTime" required>
 
                         <div class="mb-4">
                             <label class="form-label-custom"><i class="fa-regular fa-clock me-2"></i>Booked Duration (Hours)</label>
-                            <select class="booking-input" name="booked_hours" id="inputHours" onchange="calculateTotals()">
+                            <select class="booking-input" name="booked_hours" id="inputHours">
                                 <?php for ($h = 1; $h <= 8; $h++): ?>
                                     <option value="<?= $h ?>"><?= $h ?> Hour<?= $h > 1 ? 's' : '' ?></option>
                                 <?php endfor; ?>
@@ -347,7 +348,7 @@ $providerImage = !empty($service['profile_image']) ? $service['profile_image'] :
             <!-- RIGHT SUMMARY -->
             <div class="col-lg-4">
                 <div class="summary-card">
-                    <h5 class="text-gold text-center mb-4">Booking Summary</h5>
+                    <h5 class="text-gold text-center mb-4" style="color: #D4AF37;">Booking Summary</h5>
 
                     <div class="summary-item"><span>Hourly Rate</span><span class="text-white">$<span id="summRate"><?= number_format($hourlyRate, 2) ?></span></span></div>
                     <div class="summary-item"><span>Booked Duration</span><span class="text-white"><span id="summHours">1</span> hr</span></div>
@@ -359,11 +360,11 @@ $providerImage = !empty($service['profile_image']) ? $service['profile_image'] :
 
                     <div class="summary-item total-row">
                         <span class="fw-bold text-white">Grand Total</span>
-                        <span class="text-gold fw-bold">$<span id="summTotal">0.00</span></span>
+                        <span class="text-gold fw-bold" style="color: #D4AF37;">$<span id="summTotal">0.00</span></span>
                     </div>
 
                     <div class="mt-4 d-grid">
-                        <button type="button" class="btn btn-gold py-3 fw-bold rounded-3" id="proceedBtn">Proceed to Payment</button>
+                        <button type="button" class="btn btn-gold py-3 fw-bold rounded-3" id="proceedBtn" style="background: #D4AF37; color: black; border: none;">Proceed to Payment</button>
                     </div>
                 </div>
             </div>
@@ -375,153 +376,174 @@ $providerImage = !empty($service['profile_image']) ? $service['profile_image'] :
 <?php require_once '../includes/payment-modal.php'; ?>
 
 <script>
-    // --- CLIENT SIDE CALENDAR & CALCULATIONS (MIMICS REACT BEHAVIOR) ---
-    const hourlyRate = <?= $hourlyRate ?>;
-    const platformFee = 49;
-    let selectedDate = null;
-    let selectedTime = null;
-    let currentDate = new Date();
+    document.addEventListener("DOMContentLoaded", function() {
+        const hourlyRate = <?= $hourlyRate ?>;
+        const platformFee = 49;
+        let selectedDate = null;
+        let selectedTime = null;
+        let currentDate = new Date();
 
-    function calculateTotals() {
-        const hours = parseInt(document.getElementById('inputHours').value) || 1;
-        const providerFee = hourlyRate * hours;
-        const gst = Math.round(providerFee * 0.18 * 100) / 100;
-        const total = providerFee + platformFee + gst;
+        function calculateTotals() {
+            const hoursElem = document.getElementById('inputHours');
+            const hours = hoursElem ? parseInt(hoursElem.value) || 1 : 1;
+            const providerFee = hourlyRate * hours;
+            const gst = Math.round(providerFee * 0.18 * 100) / 100;
+            const total = providerFee + platformFee + gst;
 
-        document.getElementById('summHours').textContent = hours;
-        document.getElementById('summFee').textContent = providerFee.toFixed(2);
-        document.getElementById('summGST').textContent = gst.toFixed(2);
-        document.getElementById('summTotal').textContent = total.toFixed(2);
-    }
-
-    function generateCalendar() {
-        const grid = document.getElementById('calendarGrid');
-        grid.innerHTML = '';
-
-        const year = currentDate.getFullYear();
-        const month = currentDate.getMonth();
-        const firstDay = new Date(year, month, 1).getDay();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        document.getElementById('monthDisplay').textContent = `${monthNames[month]} ${year}`;
-
-        // Empty cells
-        for (let i = 0; i < firstDay; i++) {
-            grid.innerHTML += `<div class="cal-cell empty"></div>`;
+            if (document.getElementById('summHours')) document.getElementById('summHours').textContent = hours;
+            if (document.getElementById('summFee')) document.getElementById('summFee').textContent = providerFee.toFixed(2);
+            if (document.getElementById('summGST')) document.getElementById('summGST').textContent = gst.toFixed(2);
+            if (document.getElementById('summTotal')) document.getElementById('summTotal').textContent = total.toFixed(2);
         }
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        function generateCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
 
-        // Days
-        for (let i = 1; i <= daysInMonth; i++) {
-            const cellDate = new Date(year, month, i);
-            const dateStr = cellDate.toISOString().split('T')[0];
-            const isPast = cellDate < today;
-            const dayOfWeek = cellDate.getDay();
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-            // Demo Status Logic
-            let status = 'green';
-            let slots = ['09:00 AM', '10:30 AM', '12:00 PM', '02:00 PM'];
-            if (dayOfWeek === 0) {
-                status = 'grey';
-                slots = [];
-            } else if (dayOfWeek === 4) {
-                status = 'red';
-                slots = [];
-            } else if (dayOfWeek === 2 || dayOfWeek === 6) {
-                status = 'yellow';
-                slots = ['09:00 AM', '02:00 PM'];
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            if (document.getElementById('monthDisplay')) {
+                document.getElementById('monthDisplay').textContent = `${monthNames[month]} ${year}`;
             }
 
-            if (isPast) status = 'grey';
-
-            const cell = document.createElement('div');
-            cell.className = `cal-cell status-${status} ${isPast ? 'past-date' : ''} ${selectedDate === dateStr ? 'selected' : ''}`;
-            cell.textContent = i;
-
-            if (!isPast && status !== 'grey' && status !== 'red') {
-                cell.onclick = () => selectDate(dateStr, slots);
+            for (let i = 0; i < firstDay; i++) {
+                grid.innerHTML += `<div class="cal-cell empty"></div>`;
             }
-            grid.appendChild(cell);
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const cellDate = new Date(year, month, i);
+                const dateStr = cellDate.toISOString().split('T')[0];
+                const isPast = cellDate < today;
+                const dayOfWeek = cellDate.getDay();
+
+                let status = 'green';
+                let slots = ['09:00 AM', '10:30 AM', '12:00 PM', '02:00 PM'];
+                if (dayOfWeek === 0) {
+                    status = 'grey';
+                    slots = [];
+                } else if (dayOfWeek === 4) {
+                    status = 'red';
+                    slots = [];
+                } else if (dayOfWeek === 2 || dayOfWeek === 6) {
+                    status = 'yellow';
+                    slots = ['09:00 AM', '02:00 PM'];
+                }
+
+                if (isPast) status = 'grey';
+
+                const cell = document.createElement('div');
+                cell.className = `cal-cell status-${status} ${isPast ? 'past-date' : ''} ${selectedDate === dateStr ? 'selected' : ''}`;
+                cell.textContent = i;
+
+                if (!isPast && status !== 'grey' && status !== 'red') {
+                    cell.onclick = () => selectDate(dateStr, slots);
+                }
+                grid.appendChild(cell);
+            }
         }
-    }
 
-    function selectDate(dateStr, slots) {
-        selectedDate = dateStr;
-        selectedTime = null;
-        document.getElementById('inputDate').value = dateStr;
-        document.getElementById('inputTime').value = '';
+        function selectDate(dateStr, slots) {
+            selectedDate = dateStr;
+            selectedTime = null;
+            if (document.getElementById('inputDate')) document.getElementById('inputDate').value = dateStr;
+            if (document.getElementById('inputTime')) document.getElementById('inputTime').value = '';
 
-        const wrapper = document.getElementById('timeSlotsWrapper');
-        const slotsGrid = document.getElementById('slotsGrid');
+            const wrapper = document.getElementById('timeSlotsWrapper');
+            const slotsGrid = document.getElementById('slotsGrid');
 
-        wrapper.classList.remove('d-none');
-        slotsGrid.innerHTML = '';
+            if (wrapper) wrapper.classList.remove('d-none');
+            if (slotsGrid) {
+                slotsGrid.innerHTML = '';
+                slots.forEach(slot => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'time-slot-btn';
+                    btn.textContent = slot;
+                    btn.onclick = () => {
+                        document.querySelectorAll('.time-slot-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        selectedTime = slot;
+                        if (document.getElementById('inputTime')) document.getElementById('inputTime').value = slot;
+                    };
+                    slotsGrid.appendChild(btn);
+                });
+            }
+            generateCalendar();
+        }
 
-        slots.forEach(slot => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'time-slot-btn';
-            btn.textContent = slot;
-            btn.onclick = (e) => {
-                document.querySelectorAll('.time-slot-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                selectedTime = slot;
-                document.getElementById('inputTime').value = slot;
+        if (document.getElementById('prevMonth')) {
+            document.getElementById('prevMonth').onclick = () => {
+                currentDate.setMonth(currentDate.getMonth() - 1);
+                generateCalendar();
             };
-            slotsGrid.appendChild(btn);
-        });
-
-        generateCalendar(); // Re-render to show selected state
-    }
-
-    document.getElementById('prevMonth').onclick = () => {
-        currentDate.setMonth(currentDate.getMonth() - 1);
-        generateCalendar();
-    };
-    document.getElementById('nextMonth').onclick = () => {
-        currentDate.setMonth(currentDate.getMonth() + 1);
-        generateCalendar();
-    };
-
-    // INITIALIZE
-    calculateTotals();
-    generateCalendar();
-
-    // VALIDATE AND TRIGGER MODAL
-    document.getElementById('proceedBtn').onclick = () => {
-        const address = document.getElementById('inputAddress').value.trim();
-        if (!selectedDate || !selectedTime || !address) {
-            alert("Please select a date, time, and enter your address.");
-            return;
         }
-        // Inject totals into the modal dynamically before opening
-        const total = document.getElementById('summTotal').textContent;
-        document.getElementById('modalAmountDisplay').textContent = '$' + total;
+        if (document.getElementById('nextMonth')) {
+            document.getElementById('nextMonth').onclick = () => {
+                currentDate.setMonth(currentDate.getMonth() + 1);
+                generateCalendar();
+            };
+        }
+        if (document.getElementById('inputHours')) {
+            document.getElementById('inputHours').onchange = calculateTotals;
+        }
 
-        // Open Bootstrap Modal
-        var myModal = new bootstrap.Modal(document.getElementById('paymentModal'));
-        myModal.show();
-    };
+        calculateTotals();
+        generateCalendar();
 
-    // INTERCEPT MODAL SUBMIT TO SUBMIT THE ENTIRE BOOKING FORM
-    document.getElementById('paymentForm').addEventListener('submit', function(e) {
-        e.preventDefault();
+        const proceedBtn = document.getElementById('proceedBtn');
+        if (proceedBtn) {
+            proceedBtn.onclick = async () => {
+                const addressElem = document.getElementById('inputAddress');
+                const address = addressElem ? addressElem.value.trim() : '';
 
-        // Create hidden inputs for the CC data inside the main booking form
-        const bookingForm = document.getElementById('bookingForm');
+                if (!selectedDate || !selectedTime || !address) {
+                    alert("Please select a date, time slot, and enter your service address.");
+                    return;
+                }
 
-        const cardInput = document.createElement('input');
-        cardInput.type = 'hidden';
-        cardInput.name = 'card_number';
-        cardInput.value = this.querySelector('[name="card_number"]').value;
+                const total = document.getElementById('summTotal') ? parseFloat(document.getElementById('summTotal').textContent) : 0;
+                const provFee = document.getElementById('summFee') ? document.getElementById('summFee').textContent : '0.00';
+                const gst = document.getElementById('summGST') ? document.getElementById('summGST').textContent : '0.00';
 
-        bookingForm.appendChild(cardInput);
+                // Create pending booking via AJAX first to get ID for the modal
+                const formData = new FormData(document.getElementById('bookingForm'));
 
-        // Submit the real booking form
-        bookingForm.submit();
+                try {
+                    proceedBtn.disabled = true;
+                    proceedBtn.innerText = "Initializing...";
+
+                    const response = await fetch('../actions/create_pending_booking.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // Open the payment modal
+                        if (typeof openPaymentModal === 'function') {
+                            openPaymentModal(data.booking_id, total, provFee, gst);
+                        } else {
+                            alert("Payment gateway component error.");
+                        }
+                    } else {
+                        alert(data.message || "Failed to initialize booking.");
+                    }
+                } catch (err) {
+                    alert("A network error occurred.");
+                } finally {
+                    proceedBtn.disabled = false;
+                    proceedBtn.innerText = "Proceed to Payment";
+                }
+            };
+        }
     });
 </script>
 

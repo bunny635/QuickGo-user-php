@@ -13,7 +13,6 @@ $selectedCategory = isset($_GET['category']) && $_GET['category'] !== 'All' ? $_
 $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
 
 // 3. Build Dynamic SQL Query
-// 3. Build Dynamic SQL Query
 $sql = "
     SELECT s.*, pu.name AS provider_name, pu.profile_image, p.availability AS provider_availability, p.experience 
     FROM services s 
@@ -29,7 +28,7 @@ if ($selectedCategory !== 'All') {
 }
 
 if ($searchQuery !== '') {
-    $sql .= " AND (s.title LIKE ? OR s.description LIKE ? OR p.name LIKE ?)";
+    $sql .= " AND (s.title LIKE ? OR s.description LIKE ? OR pu.name LIKE ?)";
     $searchTerm = "%{$searchQuery}%";
     $params[] = $searchTerm;
     $params[] = $searchTerm;
@@ -48,7 +47,6 @@ try {
     $error = "Unable to connect to service catalog. Please check backend server.";
 }
 
-// DEFINED IN LOWERCASE HERE
 $categories = ['All', 'Home Cleaning', 'Garden Care', 'Electrician'];
 ?>
 
@@ -200,6 +198,16 @@ $categories = ['All', 'Home Cleaning', 'Garden Care', 'Electrician'];
                 Book vetted, top-tier professionals for luxury residential maintenance and lifestyle services.
             </p>
 
+            <!-- Dynamic Counts -->
+            <div class="d-flex justify-content-center gap-4 mt-3">
+                <span class="badge bg-dark border border-secondary text-gold px-3 py-2 fs-6">
+                    <i class="fa-solid fa-users me-2"></i> <?= number_format((float)$customerCount) ?> Happy Customers
+                </span>
+                <span class="badge bg-dark border border-secondary text-gold px-3 py-2 fs-6">
+                    <i class="fa-solid fa-user-tie me-2"></i> <?= number_format((float)$providerCount) ?> Expert Providers
+                </span>
+            </div>
+
             <!-- Form for Filtering and Searching -->
             <form id="filterForm" action="services.php" method="GET" class="mt-4">
                 <input type="hidden" name="category" id="categoryInput" value="<?= htmlspecialchars($selectedCategory) ?>">
@@ -217,7 +225,6 @@ $categories = ['All', 'Home Cleaning', 'Garden Care', 'Electrician'];
 
                 <!-- Category Pills -->
                 <div class="category-pills-row d-flex flex-wrap justify-content-center gap-2 mt-4">
-                    <!-- FIXED: Changed $CATEGORIES to $categories to match the PHP variable case -->
                     <?php foreach ($categories as $cat): ?>
                         <button type="button"
                             class="btn btn-sm <?= $selectedCategory === $cat ? 'btn-gold-active' : 'btn-gold-outline' ?>"

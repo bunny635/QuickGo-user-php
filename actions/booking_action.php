@@ -12,18 +12,15 @@ if (!isset($_SESSION['user_id'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // 2. Sanitize & Collect Input
     $user_id = $_SESSION['user_id'];
-    $service_id = intval($_POST['service_id']);
-    $booking_date = trim($_POST['booking_date']);
-    $booking_time = trim($_POST['booking_time']);
-    $booked_hours = intval($_POST['booked_hours']);
-    $address = trim($_POST['address']);
-
-    // Payment info (Normally sent to Stripe/Gateway, simulated here)
-    $card_number = trim($_POST['card_number'] ?? '');
+    $service_id = intval($_POST['service_id'] ?? 0);
+    $booking_date = trim($_POST['booking_date'] ?? '');
+    $booking_time = trim($_POST['booking_time'] ?? '');
+    $booked_hours = intval($_POST['booked_hours'] ?? 1);
+    $address = trim($_POST['address'] ?? '');
 
     // 3. Server-Side Validation
-    if (empty($service_id) || empty($booking_date) || empty($booking_time) || empty($address) || empty($card_number)) {
-        die("Invalid submission. Missing required fields.");
+    if (empty($service_id) || empty($booking_date) || empty($booking_time) || empty($address)) {
+        die("Invalid submission. Missing required fields. Please go back and make sure all inputs are filled.");
     }
 
     if ($booked_hours < 1 || $booked_hours > 8) {
@@ -31,17 +28,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
-        // 4. Fetch Service & Provider Securely to calculate price server-side
+        // 4. Fetch Service & Provider Securely
         $stmt = $pdo->prepare("SELECT s.*, p.id AS provider_id, p.availability FROM services s JOIN providers p ON s.provider_id = p.id WHERE s.id = ?");
         $stmt->execute([$service_id]);
         $service = $stmt->fetch();
 
         if (!$service) {
             die("Service not found.");
-        }
-
-        if ($service['availability'] !== 'Online') {
-            die("Provider is currently unavailable.");
         }
 
         // 5. Check for Double Booking (Availability Validation)
@@ -51,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             die("This time slot has already been booked. Please go back and select another time.");
         }
 
-        // 6. Secure Financial Calculations (Ignoring Client-Side DOM values entirely)
+        // 6. Secure Financial Calculations
         $hourlyPay = $service['hourly_pay'] > 0 ? $service['hourly_pay'] : $service['price'];
         $providerFee = $hourlyPay * $booked_hours;
         $platformFee = 49.00;
@@ -63,10 +56,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $payment_ref = 'PAY-' . time() . '-' . rand(100, 999);
         $txn_id = 'QG-TXN-' . strtoupper(substr(md5(uniqid()), 0, 9));
 
-        // 7. Database Transaction (Atomicity)
+        // 7. Database Transaction
         $pdo->beginTransaction();
 
-        // Insert Booking
+        // Insert Booking (Marked Confirmed for demo flow)
         $bookStmt = $pdo->prepare("
             INSERT INTO bookings 
             (booking_ref, user_id, provider_id, service_id, booking_date, booking_time, address, hourly_pay, booked_hours, amount, provider_fee, platform_fee, gst, grand_total, payment_status, booking_status) 
@@ -110,14 +103,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $pdo->commit();
 
-        // 8. Confirmation Redirect
-        // Store success message in session for the UI to pick up
-        $_SESSION['toast_success'] = "Booking Confirmed! Your transaction ID is $txn_id.";
-        header("Location: ../pages/my-bookings.php");
+        // 8. Redirect to My Bookings with Success
+        header("Location: ../pages/my-bookings.php?success=1");
         exit;
     } catch (Exception $e) {
-        $pdo->rollBack();
-        error_log($e->getMessage()); // Log internally
-        die("A system error occurred while processing your booking. Please try again.");
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        die("A system error occurred while processing your booking: " . htmlspecialchars($e->getMessage()));
     }
+} else {
+    header("Location: ../pages/services.php");
+    exit;
 }
