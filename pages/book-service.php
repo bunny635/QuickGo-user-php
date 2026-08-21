@@ -7,7 +7,13 @@ require_once '../includes/navbar.php';
 
 $service_id = isset($_GET['service_id']) ? intval($_GET['service_id']) : 0;
 
-$stmt = $pdo->prepare("SELECT s.*, p.name AS provider_name, p.profile_image FROM services s JOIN providers p ON s.provider_id = p.id WHERE s.id = ?");
+$stmt = $pdo->prepare("
+    SELECT s.*, pu.name AS provider_name, pu.profile_image 
+    FROM services s 
+    JOIN providers p ON s.provider_id = p.id 
+    JOIN users pu ON p.user_id = pu.id
+    WHERE s.id = ?
+");
 $stmt->execute([$service_id]);
 $service = $stmt->fetch();
 

@@ -13,10 +13,12 @@ $selectedCategory = isset($_GET['category']) && $_GET['category'] !== 'All' ? $_
 $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
 
 // 3. Build Dynamic SQL Query
+// 3. Build Dynamic SQL Query
 $sql = "
-    SELECT s.*, p.name AS provider_name, p.profile_image, p.availability AS provider_availability, p.experience 
+    SELECT s.*, pu.name AS provider_name, pu.profile_image, p.availability AS provider_availability, p.experience 
     FROM services s 
     JOIN providers p ON s.provider_id = p.id 
+    JOIN users pu ON p.user_id = pu.id
     WHERE s.is_active = 1
 ";
 $params = [];
@@ -46,6 +48,7 @@ try {
     $error = "Unable to connect to service catalog. Please check backend server.";
 }
 
+// DEFINED IN LOWERCASE HERE
 $categories = ['All', 'Home Cleaning', 'Garden Care', 'Electrician'];
 ?>
 
@@ -197,16 +200,6 @@ $categories = ['All', 'Home Cleaning', 'Garden Care', 'Electrician'];
                 Book vetted, top-tier professionals for luxury residential maintenance and lifestyle services.
             </p>
 
-            <!-- Dynamic Counts -->
-            <div class="d-flex justify-content-center gap-4 mt-3">
-                <span class="badge bg-dark border border-secondary text-gold px-3 py-2 fs-6">
-                    <i class="fa-solid fa-users me-2"></i> <?= number_format($customerCount) ?> Happy Customers
-                </span>
-                <span class="badge bg-dark border border-secondary text-gold px-3 py-2 fs-6">
-                    <i class="fa-solid fa-user-tie me-2"></i> <?= number_format($providerCount) ?> Expert Providers
-                </span>
-            </div>
-
             <!-- Form for Filtering and Searching -->
             <form id="filterForm" action="services.php" method="GET" class="mt-4">
                 <input type="hidden" name="category" id="categoryInput" value="<?= htmlspecialchars($selectedCategory) ?>">
@@ -224,7 +217,8 @@ $categories = ['All', 'Home Cleaning', 'Garden Care', 'Electrician'];
 
                 <!-- Category Pills -->
                 <div class="category-pills-row d-flex flex-wrap justify-content-center gap-2 mt-4">
-                    <?php foreach ($CATEGORIES as $cat): ?>
+                    <!-- FIXED: Changed $CATEGORIES to $categories to match the PHP variable case -->
+                    <?php foreach ($categories as $cat): ?>
                         <button type="button"
                             class="btn btn-sm <?= $selectedCategory === $cat ? 'btn-gold-active' : 'btn-gold-outline' ?>"
                             style="border-radius: 20px; padding: 6px 16px; font-size: 13px; font-weight: 600;"
@@ -262,8 +256,8 @@ $categories = ['All', 'Home Cleaning', 'Garden Care', 'Electrician'];
                         $isBusy = $actualAvailability === 'Busy';
                         $isOffline = $actualAvailability === 'Offline';
 
-                        // Parse Image
-                        $images = json_decode($service['images'], true);
+                        // Parse Image safely
+                        $images = !empty($service['images']) ? json_decode($service['images'], true) : [];
                         $serviceImage = !empty($images) ? $images[0] : '../assets/images/fallback.jpg';
                         $price = $service['hourly_pay'] > 0 ? $service['hourly_pay'] : $service['price'];
                     ?>
@@ -272,13 +266,13 @@ $categories = ['All', 'Home Cleaning', 'Garden Care', 'Electrician'];
                                 style="opacity: <?= $isOffline ? '0.65' : '1' ?>; filter: <?= $isOffline ? 'grayscale(50%)' : 'none' ?>;">
 
                                 <div class="card-img-wrapper">
-                                    <img src="<?= htmlspecialchars($serviceImage) ?>" alt="<?= htmlspecialchars($service['title']) ?>" class="service-main-img">
+                                    <img src="<?= htmlspecialchars($serviceImage) ?>" alt="<?= htmlspecialchars($service['title']) ?>" class="service-main-img" onerror="this.src='../assets/images/fallback.jpg'">
 
                                     <?php if ($isOffline): ?>
                                         <div style="position: absolute; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.4); z-index: 1;"></div>
                                     <?php endif; ?>
 
-                                    <div class="category-tag">$<?= number_format($price, 2) ?> / hr</div>
+                                    <div class="category-tag">$<?= number_format((float)$price, 2) ?> / hr</div>
 
                                     <?php
                                     // Status Colors
@@ -308,7 +302,7 @@ $categories = ['All', 'Home Cleaning', 'Garden Care', 'Electrician'];
                                             </div>
                                             <div class="text-end">
                                                 <span class="text-gold small fw-bold">
-                                                    <i class="fa-solid fa-star me-1"></i> <?= number_format($service['rating'], 1) ?>
+                                                    <i class="fa-solid fa-star me-1"></i> <?= number_format((float)$service['rating'], 1) ?>
                                                 </span>
                                             </div>
                                         </div>
